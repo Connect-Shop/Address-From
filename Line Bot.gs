@@ -2609,7 +2609,7 @@ function generateFinalRepairReceipt(repairData, repairId) {
         type: 'flex', altText: 'แจ้งซ่อมสำเร็จ', contents: {
             "type": "bubble", "size": "mega",
             "body": { "type": "box", "layout": "vertical", "paddingAll": "24px", "spacing": "md", "backgroundColor": "#F0F4F8", "contents": [
-                { "type": "image", "url": "https://cdn-icons-png.flaticon.com/512/861/861214.png", "size": "md", "aspectMode": "fit", "align": "center" },
+                { "type": "image", "url": "https://kwanjaiservices.com/wp-content/uploads/2021/05/AW_Info_Web_KJ_SiteInspection.png", "size": "md", "aspectMode": "fit", "align": "center" },
                 { "type": "text", "text": "รับเรื่องแจ้งซ่อมเรียบร้อย", "weight": "bold", "size": "xl", "align": "center", "margin": "md", "color": "#1A237E" },
                 { "type": "text", "text": "เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุด", "size": "sm", "align": "center", "color": "#546E7A" },
                 { "type": "box", "layout": "vertical", "margin": "lg", "paddingAll": "16px", "cornerRadius": "8px", "backgroundColor": "#FFFFFF", "contents": [
