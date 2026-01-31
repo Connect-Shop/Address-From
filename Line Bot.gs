@@ -1,7 +1,7 @@
 /********************************************************************************
  * ส่วนที่ต้องแก้ไขค่า (CONFIGURATION)
  ********************************************************************************/
-var SPREADSHEET_ID = 'xxxxxxxxxxxx'; // <<<< กรุณาตรวจสอบว่าเป็น ID ของชีตที่ถูกต้อง
+var SPREADSHEET_ID = 'Sheet_ID'; // <<<< อัปเดต ID ใหม่แล้ว
 
 /********************************************************************************
  * ค่าคงที่ของ LINE API (CONSTANTS)
@@ -65,7 +65,6 @@ function getSettings() {
       urlAddress: data[10]
     };
 
-    // [ปรับปรุง] ลดเวลา Cache เหลือ 30 วินาที เพื่อให้อัปเดตการตั้งค่าไวขึ้น
     cache.put('bot_settings', JSON.stringify(settings), 30); 
     return settings;
   } catch (e) {
@@ -530,7 +529,9 @@ function handleViewCart(event) {
   }
   var orderId = 'ORD' + new Date().getTime();
   cache.put('orderId_' + userId, orderId, 300);
-  var flexMessage = generateCartFlex(cart, orderId);
+  
+  var userProfile = getProfile(userId); // Get display name
+  var flexMessage = generateCartFlex(cart, orderId, userProfile.displayName); // Pass display name
   reply(replyToken, [flexMessage], settings.botConnect);
 }
 
@@ -1397,103 +1398,230 @@ function generateAdminDashboardFlex(summary) {
   return { type: 'flex', altText: 'Admin Dashboard', contents: flex };
 }
 
+// [UPDATED] ใช้ Carousel ตามโครงสร้างที่คุณให้มา
 function generateShopListFlex(products) {
-    function createProductBox(p) {
-        if (!p) return { "type": "box", "layout": "vertical", "flex": 1, "contents": [] };
-
+    var bubbles = products.map(function(p) {
         var discountedPrice = p.price - p.discount;
-        var originalPriceComponent = { type: "filler" };
-        if (p.discount && p.discount > 0) {
-            originalPriceComponent = {
-                "type": "text", "text": "฿" + p.price.toLocaleString('th-TH'),
-                "size": "xs", "color": "#888888", "decoration": "line-through"
-            };
-        }
-
+        var discountText = (p.discount > 0) ? "Discount " + p.discount + " THB Off" : "Regular Price";
+        
         return {
-            "type": "box", "layout": "vertical", "borderColor": "#E0E0E0", "borderWidth": "1px",
-            "cornerRadius": "16px", "paddingAll": "12px", "flex": 1,
-            "contents": [
-                { "type": "image", "url": p.imageUrl, "size": "full", "aspectRatio": "1:1", "aspectMode": "cover" },
-                { "type": "text", "text": p.name, "weight": "bold", "size": "sm", "margin": "md", "wrap": true },
-                originalPriceComponent,
-                { "type": "box", "layout": "horizontal", "margin": "md",
-                    "contents": [
-                        { "type": "text", "text": "฿" + discountedPrice.toLocaleString('th-TH', { minimumFractionDigits: 2 }), "weight": "bold", "size": "sm", "flex": 1, "gravity": "center" },
-                        { "type": "box", "layout": "vertical", "width": "28px", "height": "28px", "cornerRadius": "100px", "backgroundColor": "#FFB800", "alignItems": "center", "justifyContent": "center",
-                            "action": { "type": "message", "label": "add", "text": "ADD_TO_CART_" + p.id },
-                            "contents": [ { "type": "text", "text": "+", "align": "center", "color": "#FFFFFF", "weight": "bold" } ]
-                        }
-                    ]
-                }
-            ]
-        };
-    }
-
-    var productRows = [];
-    for (var i = 0; i < products.length; i += 2) {
-        var p1 = products[i];
-        var p2 = products[i + 1];
-        var row = {
-            "type": "box", "layout": "horizontal", "spacing": "md",
-            "contents": [ createProductBox(p1), createProductBox(p2) ]
-        };
-        productRows.push(row);
-    }
-
-    var bubble = {
-        "type": "bubble", "size": "giga",
-        "body": { "type": "box", "layout": "vertical",
-            "contents": [
-                { "type": "text", "text": "Products", "weight": "bold", "size": "xl", "margin": "md", "align": "start", "gravity": "center" },
-                { "type": "box", "layout": "vertical", "spacing": "md", "margin": "lg", "contents": productRows }
-            ]
-        }
-    };
-
-    return { type: "flex", altText: "รายการสินค้าในร้าน", contents: bubble };
-}
-
-
-function generateCartFlex(cart, orderId) {
-    var itemContents = [];
-    if (cart.length > 0) {
-        cart.forEach(function(item) {
-            var itemPrice = (item.price - item.discount).toLocaleString('th-TH', { minimumFractionDigits: 2 });
-            itemContents.push({
-                "type": "box", "layout": "horizontal", "backgroundColor": "#F8F8FF", "cornerRadius": "12px", "paddingAll": "12px",
+            "type": "bubble",
+            "size": "mega",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "paddingAll": "0px",
+                "backgroundColor": "#FFFFFF",
                 "contents": [
-                    { "type": "image", "url": item.imageUrl, "size": "xs" },
-                    { "type": "box", "layout": "vertical", "flex": 5, "margin": "sm",
+                    {
+                        "type": "image",
+                        "url": p.imageUrl,
+                        "size": "full",
+                        "aspectRatio": "1.5:1",
+                        "aspectMode": "cover"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "paddingAll": "20px",
+                        "spacing": "md",
                         "contents": [
-                            { "type": "text", "text": item.name, "weight": "bold", "size": "sm" },
-                            { "type": "box", "layout": "baseline", "spacing": "sm",
-                                "contents": [ { "type": "text", "text": "฿ " + itemPrice, "size": "sm", "color": "#D32F2F", "align": "start" } ]
+                            {
+                                "type": "text",
+                                "text": p.name,
+                                "weight": "bold",
+                                "size": "xl",
+                                "color": "#1F2A44"
+                            },
+                            {
+                                "type": "text",
+                                "text": discountText,
+                                "size": "sm",
+                                "color": "#8A8A8A"
+                            },
+                            {
+                                "type": "box",
+                                "layout": "horizontal",
+                                "margin": "lg",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": discountedPrice.toLocaleString('th-TH') + " ฿",
+                                        "weight": "bold",
+                                        "size": "xl",
+                                        "color": "#1F2A44",
+                                        "flex": 1
+                                    },
+                                    {
+                                        "type": "button",
+                                        "style": "primary",
+                                        "height": "sm",
+                                        "color": "#0099FF",
+                                        "action": {
+                                            "type": "message",
+                                            "label": "สั่งสินค้า",
+                                            "text": "ADD_TO_CART_" + p.id
+                                        }
+                                    }
+                                ]
                             }
                         ]
-                    },
-                    { "type": "box", "layout": "horizontal", "spacing": "sm", "contents": [ { "type": "text", "text": item.quantity.toString(), "align": "center" } ] }
+                    }
                 ]
-            });
-        });
-    }
+            }
+        };
+    });
 
+    return { type: "flex", altText: "รายการสินค้า", contents: { type: "carousel", contents: bubbles } };
+}
+
+// [UPDATED] ใช้ Table layout ตามโครงสร้างที่คุณให้มา
+function generateCartFlex(cart, orderId, userName) {
+    var itemContents = [];
+    var currentDate = new Date().toLocaleDateString('th-TH');
+    
+    // Header for items
+    itemContents.push({
+        "type": "box",
+        "layout": "horizontal",
+        "backgroundColor": "#4169E1",
+        "paddingAll": "10px",
+        "margin": "lg",
+        "contents": [
+            { "type": "text", "text": "Product", "color": "#FFFFFF", "flex": 3 },
+            { "type": "text", "text": "Price", "color": "#FFFFFF", "flex": 2, "align": "end" },
+            { "type": "text", "text": "Qty", "color": "#FFFFFF", "flex": 1, "align": "end" },
+            { "type": "text", "text": "Discount", "color": "#FFFFFF", "flex": 2, "align": "end" }
+        ]
+    });
+
+    // Items Loop
+    cart.forEach(function(item, index) {
+        var itemBg = (index % 2 !== 0) ? "#F5F5F5" : "#FFFFFF"; // สลับสีตามตัวอย่าง
+        itemContents.push({
+            "type": "box",
+            "layout": "horizontal",
+            "paddingAll": "10px",
+            "backgroundColor": itemBg,
+            "contents": [
+                { "type": "text", "text": item.name, "flex": 3 },
+                { "type": "text", "text": item.price.toLocaleString('th-TH', {minimumFractionDigits: 2}), "flex": 2, "align": "end" },
+                { "type": "text", "text": item.quantity.toString(), "flex": 1, "align": "end" },
+                { "type": "text", "text": item.discount.toLocaleString('th-TH', {minimumFractionDigits: 2}), "flex": 2, "align": "end" }
+            ]
+        });
+    });
+
+    // Separator
+    itemContents.push({ "type": "separator" });
+
+    // Calculate Totals
     var totals = calculateCartTotals(cart);
 
     var bubble = {
-        "type": "bubble", "size": "mega",
-        "header": { "type": "box", "layout": "baseline", "backgroundColor": "#FFFAFA", "paddingAll": "12px", "contents": [ { "type": "text", "text": "Product In The Cart", "weight": "bold", "size": "lg", "margin": "md", "align": "center" } ] },
-        "body": { "type": "box", "layout": "vertical", "spacing": "md",
-            "contents": [].concat(itemContents).concat([
-                { "type": "box", "layout": "vertical", "spacing": "xs", "margin": "xxl",
+        "type": "bubble",
+        "size": "giga",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "paddingAll": "20px",
+            "backgroundColor": "#FFFFFF",
+            "contents": [
+                {
+                    "type": "box",
+                    "layout": "horizontal",
                     "contents": [
-                        { "type": "box", "layout": "horizontal", "contents": [ { "type": "text", "text": "Sub Total", "size": "sm", "color": "#666666" }, { "type": "text", "text": totals.subtotal.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + " .-", "size": "sm", "align": "end" } ] },
-                        { "type": "box", "layout": "horizontal", "contents": [ { "type": "text", "text": "Discount Total", "size": "sm", "color": "#666666" }, { "type": "text", "text": totals.totalDiscount.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + " .-", "size": "sm", "align": "end" } ] },
-                        { "type": "box", "layout": "horizontal", "contents": [ { "type": "text", "text": "Total Tax 7%", "size": "sm", "color": "#666666" }, { "type": "text", "text": totals.tax.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + " .-", "size": "sm", "align": "end" } ] },
-                        { "type": "box", "layout": "horizontal", "contents": [ { "type": "text", "text": "Total Payment", "weight": "bold", "size": "md" }, { "type": "text", "text": totals.grandTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + " .-", "weight": "bold", "size": "md", "align": "end", "color": "#D32F2F" } ] }
+                        { "type": "text", "text": "My Shop", "weight": "bold", "size": "md", "color": "#778899", "flex": 1 },
+                        { "type": "text", "text": "PRODUCT IN THE CART", "weight": "bold", "size": "sm", "align": "end" }
                     ]
                 },
-                { "type": "button", "height": "sm", "gravity": "top", "style": "primary", "action": { "type": "message", "label": "Payment Click", "text": "Payment : Shop_" + orderId } }
+                { "type": "text", "text": "Service To Connect Center", "size": "xs", "color": "#999999", "margin": "xs" },
+                { "type": "separator", "margin": "lg" },
+                {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "margin": "lg",
+                    "contents": [
+                        {
+                            "type": "box",
+                            "layout": "vertical",
+                            "flex": 1,
+                            "contents": [
+                                { "type": "text", "text": "ข้อมูลรายการ", "size": "xs", "color": "#999999" },
+                                { "type": "text", "text": userName || "Guest", "weight": "bold" }
+                            ]
+                        },
+                        {
+                            "type": "box",
+                            "layout": "vertical",
+                            "flex": 1,
+                            "contents": [
+                                { "type": "text", "text": "Date", "size": "xs", "color": "#999999" },
+                                { "type": "text", "text": currentDate, "weight": "bold" }
+                            ]
+                        }
+                    ]
+                }
+            ].concat(itemContents).concat([
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "margin": "lg",
+                    "contents": [
+                        {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "contents": [
+                                { "type": "text", "text": "Sub Total", "flex": 1 },
+                                { "type": "text", "text": totals.subtotal.toLocaleString('th-TH', {minimumFractionDigits: 2}), "align": "end" }
+                            ]
+                        },
+                        {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "contents": [
+                                { "type": "text", "text": "Tax (7%)", "flex": 1 },
+                                { "type": "text", "text": totals.tax.toLocaleString('th-TH', {minimumFractionDigits: 2}), "align": "end" }
+                            ]
+                        },
+                        {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "contents": [
+                                { "type": "text", "text": "Discount", "flex": 1 },
+                                { "type": "text", "text": totals.totalDiscount.toLocaleString('th-TH', {minimumFractionDigits: 2}), "align": "end" }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "backgroundColor": "#4169E1",
+                    "paddingAll": "12px",
+                    "margin": "lg",
+                    "contents": [
+                        {
+                            "type": "text",
+                            "text": "ชำระเงินคลิ๊ก",
+                            "color": "#FFFFFF",
+                            "weight": "bold",
+                            "flex": 1,
+                            "action": {
+                                "type": "message",
+                                "label": "action",
+                                "text": "Payment : Shop_" + orderId
+                            }
+                        },
+                        {
+                            "type": "text",
+                            "text": totals.grandTotal.toLocaleString('th-TH', {minimumFractionDigits: 2}) + " THB",
+                            "color": "#FFFFFF",
+                            "weight": "bold",
+                            "align": "end"
+                        }
+                    ]
+                }
             ])
         }
     };
@@ -1691,7 +1819,7 @@ function generateMyOrdersFlex(orders, displayName) {
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                     {
+                      {
                         "type": "button",
                         "action": { "type": "message", "label": "ดูใบเสร็จล่าสุด", "text": "ใบเสร็จ" },
                         "style": "primary",
@@ -2010,12 +2138,12 @@ function handleBookingState(event, state) {
         cache.put('booking_data_' + userId, JSON.stringify(bookingData), 900);
         cache.put('booking_state_' + userId, 'awaiting_date', 900);
 
-        var calendarFlex = generateCalendarFlex(userMessage);
-        reply(replyToken, [calendarFlex], settings.botConnect);
+        // [MODIFIED] ไม่ส่งปฏิทิน ให้พิมพ์วันที่แทน
+        reply(replyToken, [{ type: 'text', text: 'กรุณาพิมพ์วันที่ ที่ต้องการจอง (วว/ดด/ปปปป) เช่น 25/12/2025 ค่ะ' }], settings.botConnect);
 
     } else if (state === 'awaiting_date') {
         if (!/^\d{2}\/\d{2}\/\d{4}$/.test(userMessage)) {
-            reply(replyToken, [{ type: 'text', text: userMessage }], settings.botConnect); 
+            reply(replyToken, [{ type: 'text', text: 'รูปแบบวันที่ไม่ถูกต้อง กรุณาพิมพ์ใหม่ (เช่น 25/12/2025)' }], settings.botConnect); 
             return;
         }
 
@@ -2102,85 +2230,6 @@ function generateServiceSelectionFlex() {
     };
 }
 
-function generateCalendarFlex(serviceName) {
-    var today = new Date();
-    today.setHours(0, 0, 0, 0); 
-    var currentYear = today.getFullYear();
-    var currentMonth = today.getMonth();
-    var bubbles = [];
-
-    var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('ST Booking');
-    var services = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
-    var workingDaysStr = 'จ-อา'; // Default
-    for (var i = 0; i < services.length; i++) {
-        if (services[i][0] === serviceName) {
-            workingDaysStr = services[i][1];
-            break;
-        }
-    }
-    var workingDayIndexes = parseWorkingDays(workingDaysStr);
-
-    for (var month = currentMonth; month <= 11; month++) {
-        var date = new Date(currentYear, month, 1);
-        var monthName = date.toLocaleString('en-US', { month: 'long' }).toUpperCase();
-        var year = date.getFullYear();
-        var daysInMonth = new Date(year, month + 1, 0).getDate();
-        var firstDayIndex = date.getDay();
-
-        var dayContents = [];
-        var days = [];
-        for (var i = 0; i < firstDayIndex; i++) {
-            days.push(null);
-        }
-        for (var i = 1; i <= daysInMonth; i++) {
-            days.push(i);
-        }
-
-        var weeks = [];
-        while (days.length > 0) {
-            weeks.push(days.splice(0, 7));
-        }
-
-        weeks.forEach(function(week) {
-            var weekContents = [];
-            for (var i = 0; i < 7; i++) {
-                var day = week[i];
-                if (day) {
-                    var currentDate = new Date(year, month, day);
-                    var dayIndex = currentDate.getDay();
-                    var isPast = currentDate < today;
-                    var isWorkingDay = workingDayIndexes.includes(dayIndex);
-                    var dateString = ('0' + day).slice(-2) + '/' + ('0' + (month + 1)).slice(-2) + '/' + year;
-
-                    if (isPast || !isWorkingDay) {
-                        weekContents.push({ "type": "text", "text": day.toString(), "align": "center", "flex": 1, "color": "#CCCCCC", "action": { "type": "message", "label": day.toString(), "text": "วันที่ " + dateString + " ไม่สามารถเลือกได้" } });
-                    } else {
-                        weekContents.push({ "type": "text", "text": day.toString(), "align": "center", "flex": 1, "color": "#000000", "action": { "type": "message", "label": day.toString(), "text": dateString } });
-                    }
-                } else {
-                    weekContents.push({ "type": "filler", "flex": 1 });
-                }
-            }
-            dayContents.push({ "type": "box", "layout": "horizontal", "contents": weekContents });
-        });
-
-        var bubble = {
-            "type": "bubble", "size": "giga",
-            "body": {
-                "type": "box", "layout": "vertical", "backgroundColor": "#FFFFFF", "cornerRadius": "16px", "paddingAll": "16px",
-                "contents": [
-                    { "type": "box", "layout": "horizontal", "contents": [ { "type": "text", "text": monthName, "weight": "bold", "size": "xl", "color": "#000000", "flex": 1 }, { "type": "text", "text": year.toString(), "weight": "bold", "size": "xl", "color": "#D50000" } ] },
-                    { "type": "box", "layout": "horizontal", "margin": "md", "contents": [ { "type": "text", "text": "Sun", "size": "sm", "align": "center", "weight": "bold", "color": "#D50000", "flex": 1 }, { "type": "text", "text": "Mon", "size": "sm", "align": "center", "flex": 1 }, { "type": "text", "text": "Tue", "size": "sm", "align": "center", "flex": 1 }, { "type": "text", "text": "Wed", "size": "sm", "align": "center", "flex": 1 }, { "type": "text", "text": "Thu", "size": "sm", "align": "center", "flex": 1 }, { "type": "text", "text": "Fri", "size": "sm", "align": "center", "flex": 1 }, { "type": "text", "text": "Sat", "size": "sm", "align": "center", "weight": "bold", "color": "#D50000", "flex": 1 } ] },
-                    { "type": "separator", "margin": "sm", "color": "#CCCCCC" },
-                    { "type": "box", "layout": "vertical", "margin": "sm", "spacing": "md", "contents": dayContents }
-                ]
-            }
-        };
-        bubbles.push(bubble);
-    }
-
-    return { type: 'flex', altText: 'กรุณาเลือกวันที่', contents: { type: 'carousel', contents: bubbles } };
-}
 
 function parseWorkingDays(dayStr) {
     var dayMap = { 'อา': 0, 'จ': 1, 'อ': 2, 'พ': 3, 'พฤ': 4, 'ศ': 5, 'ส': 6 };
